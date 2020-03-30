@@ -1,0 +1,195 @@
+---
+title: Activité 5 - Analyse multivariée, imputation et valeurs aberrantes
+  aberrantes
+author: "Andrés Silva"
+date: "26/03/2020"
+runtime: shiny
+output: 
+  html_document:
+    number_sections : true
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(shiny)
+library(kableExtra)
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+***
+**Objectifs de l'activité** :
+
+   - Imputer le valeurs manquantes
+   - Retirer les données aberrantes
+   - Effectuer une analyse discriminante linéaire
+
+***   
+
+Tout d'abord, il faut charger les modules nécessaires pour le developpement de l'activité. Les modules utilisés sont :
+
+- `tidyverse` sera utilisé pour manipuler et efectuer des opérations sur les tableux
+- Le module `VIM` permet d'afficher la structure des données manquantes.
+- L'imputation des données manquantes est fait avec le module `mice`.
+- Le module `mvoutlier` sert à detecter les données aberrantes.
+- L'analyse discriminante se fait avec le module `ade4` 
+
+La fonction `read_csv()` sert à lire le fichier contenant les données, lesquels sont stockées dans le tableau _data_dragon_. La fonction `set.seed()` sert à fixer les nombres aléatoires générés pendant le developpement de l'activité, afin d'éviter des changements dans les résultats des futures exécutions du code et de rendre le code reproductible.
+
+```{r}
+library(tidyverse)
+library(VIM)
+library(mice)
+library(mvoutlier)
+library(ade4)
+
+set.seed(197273)
+data_dragon <- read_csv("dragons.csv")
+```
+
+# _Imputation de données manquantes_
+
+La visualisation des données manquantes peut être faite avec la fonction `matrixplot()` du module `VIM`. En autre, la fonction `aggr()` (module `VIM`) permet visualiser la proportion de données manquantes par chacune des variables (segments) mesurées.
+
+```{r}
+matrixplot(data_dragon %>%
+             select(-c(ID, Species)))
+
+#plot(aggr(data_dragon %>%
+ #           select(-c(ID, Species))))
+aggr(data_dragon %>%
+        select(-c(ID, Species)))
+```
+
+En regardant les graphiques obtenus, il est évident que les seules variables qui n'ont pas de données manquantes sont _V5_ et _V10_, tandis que la variable _V9_ a la proportion la plus haute de données manquantes (2). La proportion des observations avec données manquantes par rappport au total d'observations est calculée avec les commandes du code ci-dessous.
+
+```{r}
+row_missing <- data_dragon %>%
+  filter(apply(., 1, function(x) any(is.na(x))))
+
+nrow(row_missing) / nrow(data_dragon)
+```
+
+9 (18 %) des 50 observations ont au moins une donnée manquante. La fonction `mice()` fait l'imputation des données manquantes, cette fonction prend le tableau avec les données et utilise une méthode d'imputation choisie par l'utilisateur, dans ce cas la méthode **random forest** a été choisie. La fonction `complete()` remplace les données manquantes du tableau original par les données calculées par la fonction `mice()`. Finalement, il est fait un graphique avec la fonction `matrixplot()` afin de confirmer que toutes les données manquantes ont été imputées (pas de lignes rouges).
+
+```{r}
+dragons_mice <- mice(data_dragon, method = "rf")
+dragons_imp <- complete(dragons_mice)
+matrixplot(dragons_imp %>%
+             select(-c(ID, Species)))
+```
+
+Une fois que l'imputation des données manquantes est faite, il est possible de faire la detection des données aberrantes.
+
+# _Détection et élimination des données aberrantes_
+
+Un premier stratégie pour détecter les données aberrantes est l'utilisation d'une méthode graphique. Dans ce cas, le boxplot a été utilisé.
+
+```{r}
+boxplot(dragons_imp %>%
+          select(c(-ID,-Species)))
+```
+
+Les boxplot des différentes variables montrent que _V1_ et _V3_ ont toutes deux une valeur aberrante dont la valeur est proche de 15. _V7_ semble avoir une valeur anormale d'environ 5. Dans le cas de _V4_, _V6_, _V9_ et _V10_, il existe apparemment des valeurs aberrantes, mais ces cas sont moins évidents. Dans le but d'avoir une meilleure estimation des valeurs aberrantes, une méthode de détection par projection a été employée. En utilisant la fonction `sign2()` du module `mvoutlier`, il est possible de trouver les données anormales avec un seuil du $\chi^2_{\ df\ =\ 11;\ 0.975}$. La proportion des observations contenant des données aberrantes sur le nombre total d'observations est calculée `r is_out <- sign2(dragons_imp %>% select(-Species), qcrit = 0.975)$wfinal01` (`r sum(is_out == 0) / length(is_out)`).
+
+```{r}
+is_out <- sign2(dragons_imp %>%
+                  select(-Species), qcrit = 0.975)$wfinal01
+prop_aber <- sum(is_out == 0) / length(is_out)
+```
+
+```{r echo = FALSE}
+cat("La proportion de valeurs aberrantes est : ", prop_aber)
+```
+
+Étant donné que le nombre de variables est élevé (11 segments). Ci-après, se montre le graphique des données aberrantes. Il peut être déroutant de les afficher toutes sur un seul graphique (fonction de base `plot()`), c'est pourquoi, en utilisant les elements graphiques de `shiny`, l'utilisateur peut choisir le nombre de variables à montrer avec le curseur ci-dessous.
+
+```{r echo = FALSE}
+sliderInput("var_adjust", label = "Variables à montrer:",
+              min = 3, max = 11, value = 5, step = 1)
+```
+
+```{r echo = FALSE}
+renderPlot({
+   d <- input$var_adjust + 2
+   plot(dragons_imp[,3:d], col = is_out + 2)
+   })
+```
+
+Les graphiques montrent qu'il y a 4 données aberrantes (points rouges). Les lignes dans lesquels se trouvent les données aberrantes peuvent être identifiées en utilisant la fonction `which()`. 
+
+```{r}
+kable(dragons_imp[which(is_out == 0), ], align = 'c',
+      caption = "Tableau 1. Individus avec données aberrantes") %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+```
+
+Le _Dragon A_ a une observation avec au moins une valeur aberrante et le _Dragon E_ a 3 observations avec valeurs anormales. Bien que les observations ayant des données anormales ont été déjà identifiées, il n'est pas encore connu à quelles variables ces valeurs appartiennent.  Le code ci-dessous extrait les observations du _Dragon A_ afin d'identifier la variable ayant la valeur anormale de l'observation 10.
+
+```{r}
+dragons_imp %>%
+   filter(Species == "Dragon A")
+```
+
+En observant toutes les variables mesurées des individus correspondant au _Dragon A_ il est évident que la valeur aberrante de l'individu 10 correspond à la variable _V3_ (15.36). Maintenant, il sont filtrées les données de l'espèce _Dragon E_.
+
+```{r}
+dragons_imp %>%
+   filter(Species == "Dragon E")
+```
+
+Dans le cas du _Dragon E_ la valeur aberrante de la ligne 46 correspond à la variable _V1_ et de l'observation _42_ correspond à la variable _V7_, cependant, il n'est pas clair quelle variable de l'observation 41 a une valeur aberrante. Puisque le nombre d'observations par chaque espèce n'est pas trés grand, les données aberrantes seront corrigées. Pour ce faire, les valeurs des observations _10_, _42_ et _46_ seront changées par valeurs manquantes (`NA`) et imputées avec les fonctions du module `mice`. En ce qui concerne l'observation _41_, elle ne sera ni changée ni suprimée. Les données corrigées sont stockées dans le tableau _dragons_sans_out_.
+
+```{r}
+dragons_imp$V1[46] <- NA; dragons_imp$V3[10] <- NA; dragons_imp$V7[42] <- NA
+dragons_imp_mice <- mice(dragons_imp, method = "rf")
+dragons_sans_out <- complete(dragons_imp_mice)
+head(dragons_sans_out)
+```
+
+Le tableau 1 résume les données aberrantes et les valeurs pour lesquelles ont été remplacées.
+
+```{r echo = FALSE}
+specie <- c("Dragon A", "Dragon E", "Dragon E"); variable <- c("V3", "V7", "V1");
+obs <- c(10, 42, 46); aber <- c(15.36, 4.95, 15.11); newval <- c(3.49, 1.05, 3.93)
+
+tableau1 <- tibble("Espèce" = specie, "Variable" = variable, "Observation" = obs,
+                   "Valeur Anormale" = aber, "Valeur corrigée" = newval)
+
+kable(tableau1, align = 'c',
+      caption = "Tableau 2. Résumé des valeurs remplaçant les valeurs aberrantes") %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+```
+
+# _Analyse discriminante linéaire_
+
+```{r}
+dragon_pca <- dudi.pca(dragons_sans_out %>% select(-c(ID, Species)),
+                     scannf = FALSE, # ne pas générer de graphique
+                     scale = TRUE)
+
+dragon_lda <- ade4::discrimin(dudi = dragon_pca,
+                      fac = as.factor(dragons_sans_out$Species),
+                      scannf = FALSE)
+
+```
+
+
+```{r eval=FALSE, include=FALSE}
+dragon_pca <- dudi.pca(dragons_sans_out %>% select(-c(ID, Species)),
+                     scannf = FALSE, # ne pas générer de graphique
+                     scale = TRUE)
+fact_spec <- as.factor(dragons_sans_out$Species)
+dragon_lda <- ade4::discrimin(dudi = dragon_pca,
+                      fac = fact_spec,
+                      scannf = FALSE)
+plot(dragon_lda)
+
+source("https://raw.githubusercontent.com/essicolo/AgFun/master/plotDA_gg.R")
+plotDA(scores = dragon_lda$li,
+       loadings = dragon_lda$fa,
+       fac = as.factor(dragons_sans_out$Species),
+      level=0.95,
+       facname = "Species",
+       propLoadings = 1) 
+```
+
