@@ -8,7 +8,9 @@ library(mvoutlier)
 set.seed(197273)
 data_dragon <- read_csv("dragons.csv")
 dragons_mice <- mice(data_dragon, method = "rf")
-dragons_imp <- complete(dragons_mice)
+dragons_imp <- mvoutlier::complete(dragons_mice)
+
+shiny::runGitHub( "Activity5", "afsilvad", subdir = "/DragonPlots")
 
 is_out <- sign2(dragons_imp %>%
                     select(-Species), qcrit = 0.975)$wfinal01

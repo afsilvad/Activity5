@@ -3,7 +3,6 @@ title: Activité 5 - Analyse multivariée, imputation et valeurs aberrantes
   aberrantes
 author: "Andrés Silva"
 date: "26/03/2020"
-runtime: shiny
 output: 
   html_document:
     number_sections : true
@@ -104,15 +103,15 @@ cat("La proportion de valeurs aberrantes est : ", prop_aber)
 Étant donné que le nombre de variables est élevé (11 segments). Ci-après, se montre le graphique des données aberrantes. Il peut être déroutant de les afficher toutes sur un seul graphique (fonction de base `plot()`), c'est pourquoi, en utilisant les elements graphiques de `shiny`, l'utilisateur peut choisir le nombre de variables à montrer avec le curseur ci-dessous.
 
 ```{r echo = FALSE}
-sliderInput("var_adjust", label = "Variables à montrer:",
-              min = 3, max = 11, value = 5, step = 1)
+#sliderInput("var_adjust", label = "Variables à montrer:",
+#              min = 3, max = 11, value = 5, step = 1)
 ```
 
 ```{r echo = FALSE}
-renderPlot({
-   d <- input$var_adjust + 2
-   plot(dragons_imp[,3:d], col = is_out + 2)
-   })
+#renderPlot({
+#   d <- input$var_adjust + 2
+#   plot(dragons_imp[,3:d], col = is_out + 2)
+#   })
 ```
 
 Les graphiques montrent qu'il y a 4 données aberrantes (points rouges). Les lignes dans lesquels se trouvent les données aberrantes peuvent être identifiées en utilisant la fonction `which()`. 
@@ -126,6 +125,7 @@ kable(dragons_imp[which(is_out == 0), ], align = 'c',
 Le _Dragon A_ a une observation avec au moins une valeur aberrante et le _Dragon E_ a 3 observations avec valeurs anormales. Bien que les observations ayant des données anormales ont été déjà identifiées, il n'est pas encore connu à quelles variables ces valeurs appartiennent.  Le code ci-dessous extrait les observations du _Dragon A_ afin d'identifier la variable ayant la valeur anormale de l'observation 10.
 
 ```{r}
+#runGitHub( "Activity5", "afsilvad", subdir = "/DragonPlots")
 dragons_imp %>%
    filter(Species == "Dragon A")
 ```
