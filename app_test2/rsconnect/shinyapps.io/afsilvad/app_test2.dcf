@@ -1,0 +1,12 @@
+name: app_test2
+title: app_test2
+username:
+account: afsilvad
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2038211
+bundleId: 2955949
+url: https://afsilvad.shinyapps.io/app_test2/
+when: 1585775198.203
+asMultiple: FALSE
+asStatic: FALSE

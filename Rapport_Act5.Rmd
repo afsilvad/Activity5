@@ -1,8 +1,9 @@
 ---
 title: Activité 5 - Analyse multivariée, imputation et valeurs aberrantes
-  aberrantes
 author: "Andrés Silva"
 date: "26/03/2020"
+header-includes:
+  - \usepackage{booktabs}
 output: 
   html_document:
     number_sections : true
@@ -71,29 +72,40 @@ nrow(row_missing) / nrow(data_dragon)
 9 (18 %) des 50 observations ont au moins une donnée manquante. La fonction `mice()` fait l'imputation des données manquantes, cette fonction prend le tableau avec les données et utilise une méthode d'imputation choisie par l'utilisateur, dans ce cas la méthode **random forest** a été choisie. La fonction `complete()` remplace les données manquantes du tableau original par les données calculées par la fonction `mice()`. Finalement, il est fait un graphique avec la fonction `matrixplot()` afin de confirmer que toutes les données manquantes ont été imputées (pas de lignes rouges).
 
 ```{r}
-dragons_mice <- mice(data_dragon, method = "rf")
+dragons_mice <- mice(data_dragon %>%
+                       select(-ID), method = "rf")
 dragons_imp <- complete(dragons_mice)
+dragons_imp <- cbind("ID" = data_dragon$ID, dragons_imp)
 matrixplot(dragons_imp %>%
-             select(-c(ID, Species)))
+             select(-ID, -Species))
+
 ```
 
 Une fois que l'imputation des données manquantes est faite, il est possible de faire la detection des données aberrantes.
 
 # _Détection et élimination des données aberrantes_
 
-Un premier stratégie pour détecter les données aberrantes est l'utilisation d'une méthode graphique. Dans ce cas, le boxplot a été utilisé.
+Le boxplot est utile pour montrer un premier aperçu des données aberrantes, cependant, cette technique 
 
 ```{r}
 boxplot(dragons_imp %>%
-          select(c(-ID,-Species)))
+          select(-ID, -Species))
 ```
 
-Les boxplot des différentes variables montrent que _V1_ et _V3_ ont toutes deux une valeur aberrante dont la valeur est proche de 15. _V7_ semble avoir une valeur anormale d'environ 5. Dans le cas de _V4_, _V6_, _V9_ et _V10_, il existe apparemment des valeurs aberrantes, mais ces cas sont moins évidents. Dans le but d'avoir une meilleure estimation des valeurs aberrantes, une méthode de détection par projection a été employée. En utilisant la fonction `sign2()` du module `mvoutlier`, il est possible de trouver les données anormales avec un seuil du $\chi^2_{\ df\ =\ 11;\ 0.975}$. La proportion des observations contenant des données aberrantes sur le nombre total d'observations est calculée `r is_out <- sign2(dragons_imp %>% select(-Species), qcrit = 0.975)$wfinal01` (`r sum(is_out == 0) / length(is_out)`).
+Les boxplot des différentes variables montrent que _V1_ et _V3_ ont toutes deux une valeur aberrante dont la valeur est proche de 15. _V7_ semble avoir une valeur anormale d'environ 5. Dans le cas de _V4_, _V6_, _V9_ et _V10_, il existe apparemment des valeurs aberrantes, mais ces cas sont moins évidents. Dans le but d'avoir une meilleure estimation des valeurs aberrantes, une méthode de détection par projection a été employée. En utilisant la fonction `sign2()` du module `mvoutlier`, il est possible de trouver les données anormales avec un seuil du $\chi^2_{\ df\ =\ 11;\ 0.975}$. La proportion des observations contenant des données aberrantes sur le nombre total d'observations est également calculée.
 
 ```{r}
-is_out <- sign2(dragons_imp %>%
-                  select(-Species), qcrit = 0.975)$wfinal01
-prop_aber <- sum(is_out == 0) / length(is_out)
+niveau <- levels(factor(data_dragon$Species))
+row_out <- c()
+
+for (k in niveau) {
+  out_temp <- sign2(dragons_imp %>%
+                      filter(Species == k) %>%
+                      select(-ID, -Species), qcrit = 0.975)$wfinal01
+  row_out <- append(row_out, out_temp)
+}
+df_out <- dragons_imp[which(row_out == 0), ]
+prop_aber <- sum(row_out == 0) / length(row_out)
 ```
 
 ```{r echo = FALSE}
@@ -102,24 +114,47 @@ cat("La proportion de valeurs aberrantes est : ", prop_aber)
 
 Étant donné que le nombre de variables est élevé (11 segments). Ci-après, se montre le graphique des données aberrantes. Il peut être déroutant de les afficher toutes sur un seul graphique (fonction de base `plot()`), c'est pourquoi, en utilisant les elements graphiques de `shiny`, l'utilisateur peut choisir le nombre de variables à montrer avec le curseur ci-dessous.
 
-```{r echo = FALSE}
-#sliderInput("var_adjust", label = "Variables à montrer:",
-#              min = 3, max = 11, value = 5, step = 1)
+<style>
+  .superbigimage{
+      overflow-x:scroll;
+      white-space: nowrap;
+  }
+  .superbigimage{
+      overflow-y:auto;
+  }
+  .superbigimage img{
+     max-width: none;
+  }
+  .superbigimage img{
+     max-height: 800px;
+  }
+  
+</style>
+<div class="superbigimage">
+```{r echo = FALSE, fig.width=20, fig.height=10}
+plot(dragons_imp %>%
+       select(-ID, -Species), col = row_out + 2)
 ```
-
-```{r echo = FALSE}
-#renderPlot({
-#   d <- input$var_adjust + 2
-#   plot(dragons_imp[,3:d], col = is_out + 2)
-#   })
-```
+</div>
 
 Les graphiques montrent qu'il y a 4 données aberrantes (points rouges). Les lignes dans lesquels se trouvent les données aberrantes peuvent être identifiées en utilisant la fonction `which()`. 
 
-```{r}
-kable(dragons_imp[which(is_out == 0), ], align = 'c',
-      caption = "Tableau 1. Individus avec données aberrantes") %>%
-  kable_styling(bootstrap_options = "striped", full_width = F)
+```{r echo = FALSE}
+df_out[2, 5] <- cell_spec(df_out[2, 5], format = "html", color = "black",
+                          bold = T, background = "#ff8533")
+df_out[4, 8] <- cell_spec(df_out[4, 8], format = "html", color = "black",
+                          bold = T, background = "#ff8533")
+df_out[5, 7] <- cell_spec(df_out[5, 7], format = "html", color = "black",
+                          bold = T, background = "#ff8533")
+df_out[7, 5] <- cell_spec(df_out[7, 5], format = "html", color = "black",
+                          bold = T, background = "#ff8533")
+df_out[8, 3] <- cell_spec(df_out[8, 3], format = "html", color = "black",
+                          bold = T, background = "#ff8533")
+
+knitr::kable(df_out, format = "html", align = 'c', escape = F,
+             caption = "Tableau 1. Individus avec données aberrantes") %>%
+   kable_styling(bootstrap_options = c("striped", "hover"), full_width = F,
+                 position = "center")
 ```
 
 Le _Dragon A_ a une observation avec au moins une valeur aberrante et le _Dragon E_ a 3 observations avec valeurs anormales. Bien que les observations ayant des données anormales ont été déjà identifiées, il n'est pas encore connu à quelles variables ces valeurs appartiennent.  Le code ci-dessous extrait les observations du _Dragon A_ afin d'identifier la variable ayant la valeur anormale de l'observation 10.
@@ -157,7 +192,8 @@ tableau1 <- tibble("Espèce" = specie, "Variable" = variable, "Observation" = ob
 
 kable(tableau1, align = 'c',
       caption = "Tableau 2. Résumé des valeurs remplaçant les valeurs aberrantes") %>%
-  kable_styling(bootstrap_options = "striped", full_width = F)
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F,
+                position = "center")
 ```
 
 # _Analyse discriminante linéaire_

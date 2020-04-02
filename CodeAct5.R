@@ -18,21 +18,31 @@ plot(aggr(data_dragon %>%
 row_missing <- data_dragon %>%
   filter(apply(., 1, function(x) any(is.na(x))))
 
+#========= Imputation sans boucle ============================
+dragons_mice <- mice(data_dragon %>%
+                       select(-ID), method = "rf")
+dragons_imp <- complete(dragons_mice)
+
+#========= Imputation avec boucle ============================
 niveau <- levels(factor(dragons_imp$Species))
-dragon_imp_fin <- data.frame()
+dragon_imp1 <- data.frame()
 
-for (i in 1:length(niveau)) {
+for (i in niveau) {
+  set.seed(197273)
   dragons_mice1 <- mice(data_dragon %>%
-                          filter(Species == as.character(niveau)[i]), method = "rf")
+                          filter(Species == i) %>%
+                          select(-ID), method = "rf")
   dragon_imp_temp <- complete(dragons_mice1)
-  dragon_imp_fin <- rbind(dragon_imp_fin, dragon_imp_temp)
+  dragon_imp1 <- rbind(dragon_imp1, dragon_imp_temp)
 }
-
+data_dragon[!complete.cases(data_dragon), ]
+dragons_imp[!complete.cases(data_dragon), ]
+dragon_imp1[!complete.cases(data_dragon), ]
 matrixplot(dragon_imp_fin %>%
              select(-c(ID, Species)))
 nrow(row_missing) / nrow(data_dragon)
 
-dragons_imp[!complete.cases(data_dragon), ]
+dragon_imp_fin[!complete.cases(data_dragon), ]
 
 #==============================================================================
 #Données aberrantes
@@ -40,13 +50,16 @@ dragons_imp[!complete.cases(data_dragon), ]
 boxplot(dragon_imp_fin %>%
           select(-c(ID, Species)))
 
-fout <- function(x){
-  sign2(x %>%
-          select(-Species), qcrit = 0.975)$wfinal01
+row_out <- c()
+
+for (k in niveau) {
+  out_temp <- sign2(dragons_imp %>%
+                      filter(Species == k) %>%
+                      select(-Species), qcrit = 0.975)$wfinal01
+  row_out <- append(row_out, out_temp)
 }
 
-is_out2 <- fout(dragon_imp_fin)
-dragon_imp_fin[which(is_out == 0), ]
+dragon_imp_fin[which(row_out == 0), ]
 
 is_out <- sign2(dragons_imp %>%
                   select(-Species), qcrit = 0.975)$wfinal01
