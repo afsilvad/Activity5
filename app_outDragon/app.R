@@ -5,17 +5,9 @@ library(mice)
 library(mvoutlier)
 
 set.seed(197273)
-data_dragon <- read_csv("dragons.csv")
+dragons_imp <- read_csv("dragons_complete.csv")
 
-
-dragons_imp_final <- data.frame()
-
-dragons_mice <- mice(data_dragon %>%
-                         select(-ID), method = "rf")
-dragons_imp <- complete(dragons_mice)
-dragons_imp <- cbind("ID" = data_dragon$ID, dragons_imp)
-
-niveau <- levels(factor(data_dragon$Species))
+niveau <- levels(factor(dragons_imp$Species))
 row_out <- c()
 
 for (k in niveau) {
@@ -27,7 +19,7 @@ for (k in niveau) {
 
 
 # Define UI for application that draws a histogram
-ui <- fillPage(
+ui <- fluidPage(
     tags$head(              
         tags$style(HTML("
 .shiny-output-error-validation {
@@ -38,16 +30,16 @@ text-align: center;
 "))
     ),
     # Application title
-    titlePanel("Outliers des variables du tableau Dragons"),
+    titlePanel("Valeurs aberrantes des variables du tableau Dragons"),
     
     fluidRow(
         column(6,
                sidebarPanel(
                    sliderInput("var_adjust",
                                label = "Variables à montrer:",
-                               min = 3,
+                               min = 1,
                                max = 11,
-                               value = 5,
+                               value = c(1, 5),
                                step = 1),
                    width = 12
                )
@@ -55,10 +47,11 @@ text-align: center;
         column(6,
                checkboxGroupInput(inputId = "select_species",
                                   label = "Sélectionner les spèces à montrer",
-                                  choices = levels(factor(data_dragon$Species)),
-                                  selected = levels(factor(data_dragon$Species)))
+                                  choices = levels(factor(dragons_imp$Species)),
+                                  selected = levels(factor(dragons_imp$Species)))
         )
     ),
+    strong("Les points rouges représentent les données aberrantes"),
     plotOutput("outPlot")
 )
 
@@ -68,10 +61,11 @@ server <- function(input, output) {
         validate(
             need(input$select_species != "", "Choisissez au moins une espèce")
         )
-        d <- input$var_adjust + 2
+        r1 <- input$var_adjust[1] + 2
+        r2 <- input$var_adjust[2] + 2
         plot(dragons_imp %>%
                  filter(Species %in% input$select_species) %>%
-                 select(3:d), col = row_out + 2)
+                 select(all_of(r1):all_of(r2)), col = row_out + 2)
     }, height = 600)
 }
 # Run the application 

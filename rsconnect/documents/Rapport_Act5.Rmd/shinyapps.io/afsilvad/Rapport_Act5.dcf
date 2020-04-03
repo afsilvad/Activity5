@@ -5,8 +5,8 @@ account: afsilvad
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 2012399
-bundleId: 2943778
+bundleId: 2961619
 url: https://afsilvad.shinyapps.io/Rapport_Act5/
-when: 1585575075.0819
+when: 1585865052.78174
 asMultiple: FALSE
 asStatic: FALSE

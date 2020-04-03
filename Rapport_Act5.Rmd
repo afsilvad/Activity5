@@ -160,7 +160,7 @@ knitr::kable(df_out, format = "html", align = 'c', escape = F,
 Le _Dragon A_ a une observation avec au moins une valeur aberrante et le _Dragon E_ a 3 observations avec valeurs anormales. Bien que les observations ayant des données anormales ont été déjà identifiées, il n'est pas encore connu à quelles variables ces valeurs appartiennent.  Le code ci-dessous extrait les observations du _Dragon A_ afin d'identifier la variable ayant la valeur anormale de l'observation 10.
 
 ```{r}
-#runGitHub( "Activity5", "afsilvad", subdir = "/DragonPlots")
+#runGitHub( "Activity5", "afsilvad", subdir = "/app_outDragon")
 dragons_imp %>%
    filter(Species == "Dragon A")
 ```
